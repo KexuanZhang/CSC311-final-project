@@ -9,6 +9,8 @@ import torch.utils.data
 import numpy as np
 import torch
 
+from matplotlib import pyplot as plt
+
 
 def load_data(base_path="../data"):
     """ Load the data in PyTorch Tensor.
@@ -70,7 +72,7 @@ class AutoEncoder(nn.Module):
         # Implement the function as described in the docstring.             #
         # Use sigmoid activations for f and g.                              #
         #####################################################################
-        out = inputs
+        out = torch.sigmoid(self.h(torch.sigmoid(self.g(inputs))))
         #####################################################################
         #                       END OF YOUR CODE                            #
         #####################################################################
@@ -90,8 +92,8 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     :param num_epoch: int
     :return: None
     """
-    # TODO: Add a regularizer to the cost function. 
-    
+    # TODO: Add a regularizer to the cost function.
+
     # Tell PyTorch you are training the model.
     model.train()
 
@@ -113,7 +115,8 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
             nan_mask = np.isnan(train_data[user_id].unsqueeze(0).numpy())
             target[0][nan_mask] = output[0][nan_mask]
 
-            loss = torch.sum((output - target) ** 2.)
+            loss = torch.sum((output - target) ** 2.) \
+                   + lamb * 0.5 * (model.get_weight_norm())
             loss.backward()
 
             train_loss += loss.item()
@@ -162,16 +165,27 @@ def main():
     # validation set.                                                   #
     #####################################################################
     # Set model hyperparameters.
-    k = None
-    model = None
+    k = [10, 50, 100, 200, 500]
+    # model = AutoEncoder(train_matrix.shape[1], k)
 
     # Set optimization hyperparameters.
-    lr = None
-    num_epoch = None
-    lamb = None
+    lr = 0.01
+    num_epoch = 150
+    lamb = 0.01
 
-    train(model, lr, lamb, train_matrix, zero_train_matrix,
+    # Choosing K
+
+    accuracies = []
+    for k_i in k:
+        print(f"Training for k = {k_i}")
+        model = AutoEncoder(train_matrix.shape[1], k_i)
+        train(model, lr, lamb, train_matrix, zero_train_matrix,
           valid_data, num_epoch)
+        accuracies.append(evaluate(model, zero_train_matrix, valid_data))
+
+    plt.plot(k, accuracies, marker='o')
+    plt.show()
+
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################

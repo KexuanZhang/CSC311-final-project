@@ -1,7 +1,6 @@
 from sklearn.impute import KNNImputer
-# from utils import *
+from utils import *
 
-from starter_code.starter_code.utils import *
 import matplotlib.pyplot as plt
 
 def knn_impute_by_user(matrix, valid_data, k):
