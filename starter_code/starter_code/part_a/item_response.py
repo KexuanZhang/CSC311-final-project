@@ -1,6 +1,9 @@
 from utils import *
 
 import numpy as np
+import matplotlib.pyplot as plt
+
+from starter_code.starter_code.utils import load_train_csv, load_train_sparse, load_valid_csv, load_public_test_csv
 
 
 def sigmoid(x):
@@ -25,6 +28,14 @@ def neg_log_likelihood(data, theta, beta):
     # Implement the function as described in the docstring.             #
     #####################################################################
     log_lklihood = 0.
+    users = data["user_id"]
+    questions = data["question_id"]
+    corrects = data["is_correct"]
+    for i in range(len(users)):
+        user = users[i]
+        question = questions[i]
+        correct = corrects[i]
+        log_lklihood += correct * (theta[user] - beta[question]) - np.log((1 + np.exp(theta[user] - beta[question])))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -52,11 +63,22 @@ def update_theta_beta(data, lr, theta, beta):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-    pass
+    gd_theta = np.zeros_like(theta)
+    gd_beta = np.zeros_like(beta)
+    users = data["user_id"]
+    questions = data["question_id"]
+    corrects = data["is_correct"]
+    for i in range(len(users)):
+        user = users[i]
+        question = questions[i]
+        correct = corrects[i]
+
+        gd_theta[user] += correct - sigmoid((theta[user] - beta[question]))
+        gd_beta[question] += - correct + sigmoid((theta[user] - beta[question]))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
-    return theta, beta
+    return theta + lr * gd_theta, beta + lr * gd_beta
 
 
 def irt(data, val_data, lr, iterations):
@@ -73,20 +95,28 @@ def irt(data, val_data, lr, iterations):
     :return: (theta, beta, val_acc_lst)
     """
     # TODO: Initialize theta and beta.
-    theta = None
-    beta = None
+    theta = np.random.rand(542)
+    beta = np.random.rand(1774)
 
     val_acc_lst = []
+    train_neglld_lst = []
+    valid_neglld_lst = []
+
 
     for i in range(iterations):
         neg_lld = neg_log_likelihood(data, theta=theta, beta=beta)
         score = evaluate(data=val_data, theta=theta, beta=beta)
         val_acc_lst.append(score)
+        train_neglld_lst.append(neg_lld)
+
+        valid_neg_lld = neg_log_likelihood(val_data, theta=theta, beta=beta)
+        valid_neglld_lst.append(valid_neg_lld)
+
         print("NLLK: {} \t Score: {}".format(neg_lld, score))
         theta, beta = update_theta_beta(data, lr, theta, beta)
 
     # TODO: You may change the return values to achieve what you want.
-    return theta, beta, val_acc_lst
+    return theta, beta, val_acc_lst, train_neglld_lst, valid_neglld_lst
 
 
 def evaluate(data, theta, beta):
@@ -120,7 +150,21 @@ def main():
     # Tune learning rate and number of iterations. With the implemented #
     # code, report the validation and test accuracy.                    #
     #####################################################################
-    pass
+    iterations = 100
+    lr = 0.001
+    theta, beta, val_acc_lst, train_neglld_lst, valid_neglld_lst = irt(train_data, val_data, lr, iterations)
+    iter_axis = list(range(iterations))
+
+    # plt.title('training negative loglikelihood')
+    # plt.plot(iter_axis, train_neglld_lst)
+    # plt.savefig('train_lld.png')
+
+    # plt.title('validation negative loglikelihood')
+    # plt.plot(iter_axis, valid_neglld_lst)
+    # plt.savefig('valid_lld.png')
+    #
+    # print("the accuracy for validation data:", evaluate(data=val_data, theta=theta, beta=beta))
+    # print("the accuracy for test data:", evaluate(data=test_data, theta=theta, beta=beta))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -129,7 +173,12 @@ def main():
     # TODO:                                                             #
     # Implement part (d)                                                #
     #####################################################################
-    pass
+    j_1, j_2, j_3 = 12, 34, 56
+    ordered_t = np.sort(theta)
+    plt.plot(ordered_t, sigmoid((ordered_t - beta[j_1])))
+    plt.plot(ordered_t, sigmoid((ordered_t - beta[j_2])))
+    plt.plot(ordered_t, sigmoid((ordered_t - beta[j_3])))
+    plt.savefig("ques_prob.png")
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
