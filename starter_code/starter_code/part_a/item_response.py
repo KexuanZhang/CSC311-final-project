@@ -1,4 +1,4 @@
-from utils import *
+from starter_code.starter_code.utils import *
 
 import numpy as np
 import matplotlib.pyplot as plt
