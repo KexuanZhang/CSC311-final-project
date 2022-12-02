@@ -226,11 +226,11 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
         print("Epoch: {} \tTraining Cost: {:.6f}\t "
               "Valid Acc: {}".format(epoch, train_loss, valid_acc))
 
-        if valid_acc <= (highest_acc - 0.01):
+        if valid_acc <= (highest_acc - 0.003):
             limit += 1
         if valid_acc > highest_acc or highest_acc == 1:
             highest_acc = valid_acc
-        if limit > 10:
+        if limit > 7:
             return
     #####################################################################
     #                       END OF YOUR CODE                            #
@@ -270,6 +270,30 @@ def evaluate(model, train_data, valid_data):
 
     return correct / float(total)
 
+def make_prediction(model, train_data, test_data):
+    model.eval()
+
+    confidence_map, meta_map = subject_confidence(train_data, 0.1)
+
+    pred_dict = {'user_id': [], 'question_id': [], 'is_correct': []}
+
+    for i, u in enumerate(test_data["user_id"]):
+        inputs = Variable(train_data[u]).unsqueeze(0)
+        output = model(inputs)
+
+        question = test_data["question_id"][i]
+        subjects = meta_map[question]
+        confidence = 0
+        for s in subjects:
+            confidence += confidence_map[s]
+
+        guess = output[0][test_data["question_id"][i]].item() + confidence >= 0.5
+        pred_dict['user_id'].append(u)
+        pred_dict['question_id'].append(question)
+        pred_dict['is_correct'].append(guess)
+
+    save_private_test_csv(pred_dict)
+
 
 def main():
     zero_train_matrix, train_matrix, valid_data, test_data = load_data()
@@ -279,6 +303,8 @@ def main():
     # Try out 5 different k and select the best k using the             #
     # validation set.                                                   #
     #####################################################################
+    # load competition data
+    real_test_data = load_private_test_csv("../data")
     # Set model hyperparameters.
     lr = 0.005
     num_epoch = 400
@@ -294,6 +320,8 @@ def main():
 
     print(f"learning rate:{lr}, lambda:{lamb}, k1:{k1}, k2:{k2}")
     print(valid_acc, test_acc)
+
+    make_prediction(model, zero_train_matrix, real_test_data)
 
     #####################################################################
     #                       END OF YOUR CODE                            #
