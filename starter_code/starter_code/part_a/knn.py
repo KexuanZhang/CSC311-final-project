@@ -1,6 +1,6 @@
 from sklearn.impute import KNNImputer
 from utils import *
-
+import matplotlib.pyplot as plt
 
 def knn_impute_by_user(matrix, valid_data, k):
     """ Fill in the missing values using k-Nearest Neighbors based on
@@ -63,6 +63,7 @@ def main():
     # the best performance and report the test accuracy with the        #
     # chosen k*.                                                        #
     #####################################################################
+    """
     k = [1, 6, 11, 16, 21, 26]
     accuracy = []
     by_item_accuracy = []
@@ -78,6 +79,11 @@ def main():
 
     print("Highest Validation Accuracy by user is when k = 11.")
     print("Highest Validation Accuracy by item is when k = 21.")
+    """
+    user_test = knn_impute_by_user(sparse_matrix, test_data, 11)
+    item_test = knn_impute_by_item(sparse_matrix, test_data, 21)
+    print(f"Test accuracy by user when k = 11 is {user_test:.5f}.")
+    print(f"Test accuracy by item when k = 21 is {item_test:.5f}.")
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
