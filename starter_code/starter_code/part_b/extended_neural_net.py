@@ -192,6 +192,10 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     optimizer = optim.SGD(model.parameters(), lr=lr)
     num_student = train_data.shape[0]
 
+    # Early stopping
+    limit = 0
+    highest_acc = 1
+
     for epoch in range(0, num_epoch):
         train_loss = 0.
 
@@ -221,9 +225,17 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
         valid_acc = evaluate(model, zero_train_data, valid_data)
         print("Epoch: {} \tTraining Cost: {:.6f}\t "
               "Valid Acc: {}".format(epoch, train_loss, valid_acc))
+
+        if valid_acc <= (highest_acc - 0.01):
+            limit += 1
+        if valid_acc > highest_acc or highest_acc == 1:
+            highest_acc = valid_acc
+        if limit > 10:
+            return
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
+
 
 def evaluate(model, train_data, valid_data):
     """ Evaluate the valid_data on the current model.
