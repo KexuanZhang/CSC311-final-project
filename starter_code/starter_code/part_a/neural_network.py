@@ -101,6 +101,8 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     optimizer = optim.SGD(model.parameters(), lr=lr)
     num_student = train_data.shape[0]
 
+    train_losses = []
+    validation_accs = []
     for epoch in range(0, num_epoch):
         train_loss = 0.
 
@@ -125,6 +127,11 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
         valid_acc = evaluate(model, zero_train_data, valid_data)
         print("Epoch: {} \tTraining Cost: {:.6f}\t "
               "Valid Acc: {}".format(epoch, train_loss, valid_acc))
+
+        train_losses.append(train_loss)
+        validation_accs.append(valid_acc)
+
+    return train_losses, validation_accs
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -170,11 +177,12 @@ def main():
 
     # Set optimization hyperparameters.
     lr = 0.01
-    num_epoch = 150
-    lamb = 0.01
+    num_epoch = 300
+    lamb = 0.001
 
     # Choosing K
-
+    """
+    # Q4c
     accuracies = []
     for k_i in k:
         print(f"Training for k = {k_i}")
@@ -185,7 +193,60 @@ def main():
 
     plt.plot(k, accuracies, marker='o')
     plt.show()
+    """
 
+    """
+    # Q4d
+    # k* = 10, plotting training loss & validation accuracy as function
+    # of num_epoch
+    model = AutoEncoder(train_matrix.shape[1], 10)
+    train_loss, valid_acc = \
+        train(model, lr, 0, train_matrix, zero_train_matrix, valid_data, num_epoch)
+
+    fig, ax = plt.subplots()
+    ax.plot(range(num_epoch), train_loss, color='red', marker='o')
+    ax.set_xlabel("Number of epoch")
+    ax.set_ylabel("Train loss")
+    ax2 = ax.twinx()
+    ax2.plot(range(num_epoch), valid_acc, color='blue', marker='o')
+    ax2.set_ylabel("Validation accuracy")
+    plt.title("Train & Validation objective vs number of epoch")
+    plt.legend(loc='best')
+    plt.show()
+
+    test_acc = evaluate(model, zero_train_matrix, test_data)
+    print(f"Test accuracy is {test_acc:.4f}")
+    """
+
+    """
+    Q4e
+    # k* = 10, choosing lambda
+    lambs = [0.001, 0.01, 0.1, 1]
+    accuracies = []
+    for lamb in lambs:
+        print(f"Training for lambda = {lamb}")
+        model = AutoEncoder(train_matrix.shape[1], 10)
+        train(model, lr, lamb, train_matrix, zero_train_matrix,
+              valid_data, num_epoch)
+        accuracies.append(evaluate(model, zero_train_matrix, valid_data))
+
+    plt.plot(['0.001', '0.01', '0.1', '1'], accuracies, marker='o')
+    plt.xlabel("Lambda")
+    plt.ylabel("Validation Accuracy")
+    plt.title("Validation accuracy for different lambdas")
+    plt.show()
+    """
+
+    # Final model & parameters
+    # k* = 10, lambda* = 0.001
+    model = AutoEncoder(train_matrix.shape[1], 10)
+    train(model, lr, lamb, train_matrix, zero_train_matrix,
+          valid_data, num_epoch)
+    final_validation_acc = evaluate(model, zero_train_matrix, valid_data)
+    final_test_acc = evaluate(model, zero_train_matrix, test_data)
+
+    print(f"Final validation accuracy is {final_validation_acc:.4f}")
+    print(f"Final test accuracy is {final_test_acc:.4f}")
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
