@@ -37,7 +37,10 @@ def knn_impute_by_item(matrix, valid_data, k):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-    acc = None
+    imputer = KNNImputer(n_neighbors=k)
+    mat = imputer.fit_transform(matrix.T)
+    acc = sparse_matrix_evaluate(valid_data, mat.T)
+    print("Validation Accuracy by item: {}".format(acc))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -60,7 +63,21 @@ def main():
     # the best performance and report the test accuracy with the        #
     # chosen k*.                                                        #
     #####################################################################
-    pass
+    k = [1, 6, 11, 16, 21, 26]
+    accuracy = []
+    by_item_accuracy = []
+    for i in k:
+        accuracy.append(knn_impute_by_user(sparse_matrix, val_data, i))
+        by_item_accuracy.append(knn_impute_by_item(sparse_matrix, val_data, i))
+    plt.plot(k, accuracy, marker='o')
+    plt.title("Validation accuracy of KNN by user")
+    plt.show()
+    plt.plot(k, by_item_accuracy, marker='o')
+    plt.title("Validation accuracy of KNN by item")
+    plt.show()
+
+    print("Highest Validation Accuracy by user is when k = 11.")
+    print("Highest Validation Accuracy by item is when k = 21.")
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
