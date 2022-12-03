@@ -185,6 +185,16 @@ def main():
     lr = 0.01
     num_epoch = 200
     lamb = 0.001
+    # Final model & parameters
+    # k* = 10, lambda* = 0.001
+    model = AutoEncoder(train_matrix.shape[1], 10)
+    train(model, lr, lamb, train_matrix, zero_train_matrix,
+          valid_data, num_epoch)
+    final_validation_acc = evaluate(model, zero_train_matrix, valid_data)[0]
+    final_test_acc = evaluate(model, zero_train_matrix, test_data)[0]
+
+    print(f"Final validation accuracy is {final_validation_acc:.4f}")
+    print(f"Final test accuracy is {final_test_acc:.4f}")
 
     # Choosing K
     """
@@ -242,17 +252,6 @@ def main():
     plt.title("Validation accuracy for different lambdas")
     plt.show()
     """
-
-    # Final model & parameters
-    # k* = 10, lambda* = 0.001
-    model = AutoEncoder(train_matrix.shape[1], 10)
-    train(model, lr, lamb, train_matrix, zero_train_matrix,
-          valid_data, num_epoch)
-    final_validation_acc = evaluate(model, zero_train_matrix, valid_data)[0]
-    final_test_acc = evaluate(model, zero_train_matrix, test_data)[0]
-
-    print(f"Final validation accuracy is {final_validation_acc:.4f}")
-    print(f"Final test accuracy is {final_test_acc:.4f}")
 
     #####################################################################
     #                       END OF YOUR CODE                            #
