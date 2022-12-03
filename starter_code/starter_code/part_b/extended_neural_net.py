@@ -53,17 +53,21 @@ class AutoEncoder(nn.Module):
         super(AutoEncoder, self).__init__()
 
         # Define linear functions.
-        self.g = nn.Linear(num_question, k)
-        self.h = nn.Linear(k, num_question)
+        self.l1 = nn.Linear(num_question, 50)
+        self.l2 = nn.Linear(50, 10)
+        self.l3 = nn.Linear(10, 50)
+        self.l4 = nn.Linear(50, num_question)
 
     def get_weight_norm(self):
         """ Return ||W^1||^2 + ||W^2||^2.
 
         :return: float
         """
-        g_w_norm = torch.norm(self.g.weight, 2) ** 2
-        h_w_norm = torch.norm(self.h.weight, 2) ** 2
-        return g_w_norm + h_w_norm
+        l1_w_norm = torch.norm(self.l1.weight, 2) ** 2
+        l2_w_norm = torch.norm(self.l2.weight, 2) ** 2
+        l3_w_norm = torch.norm(self.l3.weight, 2) ** 2
+        l4_w_norm = torch.norm(self.l4.weight, 2) ** 2
+        return l1_w_norm + l2_w_norm + l3_w_norm + l4_w_norm
 
 
     def forward(self, inputs):
@@ -77,7 +81,10 @@ class AutoEncoder(nn.Module):
         # Implement the function as described in the docstring.             #
         # Use sigmoid activations for f and g.                              #
         #####################################################################
-        out = torch.sigmoid(self.h(torch.sigmoid(self.g(inputs))))
+        out = torch.sigmoid(self.l1(inputs))
+        out = torch.sigmoid(self.l2(out))
+        out = torch.sigmoid(self.l3(out))
+        out = torch.sigmoid(self.l4(out))
 
         #####################################################################
         #                       END OF YOUR CODE                            #
@@ -185,6 +192,10 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     optimizer = optim.SGD(model.parameters(), lr=lr)
     num_student = train_data.shape[0]
 
+    # Early stopping
+    limit = 0
+    highest_acc = 1
+
     for epoch in range(0, num_epoch):
         train_loss = 0.
 
@@ -214,11 +225,19 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
         valid_acc = evaluate(model, zero_train_data, valid_data)
         print("Epoch: {} \tTraining Cost: {:.6f}\t "
               "Valid Acc: {}".format(epoch, train_loss, valid_acc))
+
+        if valid_acc <= (highest_acc - 0.003):
+            limit += 1
+        if valid_acc > highest_acc or highest_acc == 1:
+            highest_acc = valid_acc
+        if limit > 10:
+            return
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
 
-def evaluate(model, train_data, valid_data):
+
+def evaluate(model, train_data, valid_data, confi_index=None):
     """ Evaluate the valid_data on the current model.
 
     :param model: Module
@@ -228,28 +247,51 @@ def evaluate(model, train_data, valid_data):
     :return: float
     """
     # Tell PyTorch you are evaluating the model.
-    model.eval()
+    # Tell PyTorch you are evaluating the model.
+    if confi_index is not None:
+        model.eval()
 
-    total = 0
-    correct = 0
-    confidence_map, meta_map = subject_confidence(train_data, 0.1)
+        total = 0
+        correct = 0
+        confidence_map, meta_map = subject_confidence(train_data, confi_index)
 
-    for i, u in enumerate(valid_data["user_id"]):
-        inputs = Variable(train_data[u]).unsqueeze(0)
-        output = model(inputs)
+        probs = []
 
-        question = valid_data["question_id"][i]
-        subjects = meta_map[question]
-        confidence = 0
-        for s in subjects:
-            confidence += confidence_map[s]
+        for i, u in enumerate(valid_data["user_id"]):
+            inputs = Variable(train_data[u]).unsqueeze(0)
+            output = model(inputs)
 
-        guess = output[0][valid_data["question_id"][i]].item() + confidence >= 0.5
-        if guess == valid_data["is_correct"][i]:
-            correct += 1
-        total += 1
+            question = valid_data["question_id"][i]
+            subjects = meta_map[question]
+            confidence = 0
+            for s in subjects:
+                confidence += confidence_map[s]
 
-    return correct / float(total)
+            guess = output[0][valid_data["question_id"][i]].item() + confidence >= 0.5
+            probs.append(output[0][valid_data["question_id"][i]].item() + confidence)
+            if guess == valid_data["is_correct"][i]:
+                correct += 1
+            total += 1
+
+        return correct / float(total)
+    else:
+        model.eval()
+
+        total = 0
+        correct = 0
+
+        probs = []
+
+        for i, u in enumerate(valid_data["user_id"]):
+            inputs = Variable(train_data[u]).unsqueeze(0)
+            output = model(inputs)
+
+            guess = output[0][valid_data["question_id"][i]].item() >= 0.5
+            probs.append(output[0][valid_data["question_id"][i]].item())
+            if guess == valid_data["is_correct"][i]:
+                correct += 1
+            total += 1
+        return correct / float(total)
 
 
 def main():
@@ -261,26 +303,20 @@ def main():
     # validation set.                                                   #
     #####################################################################
     # Set model hyperparameters.
-    k = [10, 50, 100, 200, 500]
-    # model = AutoEncoder(train_matrix.shape[1], k)
+    lr = 0.005
+    num_epoch = 400
+    lamb = 0.001
+    k1 = 50
+    k2 = 10
 
-    # Set optimization hyperparameters.
-    lr = 0.01
-    num_epoch = 150
-    lamb = 0.01
-
-    # Choosing K
-
-    accuracies = []
-    for k_i in k:
-        print(f"Training for k = {k_i}")
-        model = AutoEncoder(train_matrix.shape[1], k_i)
-        train(model, lr, lamb, train_matrix, zero_train_matrix,
+    model = AutoEncoder(train_matrix.shape[1])
+    train(model, lr, lamb, train_matrix, zero_train_matrix,
           valid_data, num_epoch)
-        accuracies.append(evaluate(model, zero_train_matrix, valid_data))
+    valid_acc = evaluate(model, zero_train_matrix, valid_data)
+    test_acc = evaluate(model, zero_train_matrix, test_data)
 
-    plt.plot(k, accuracies, marker='o')
-    plt.show()
+    print(f"learning rate:{lr}, lambda:{lamb}, k1:{k1}, k2:{k2}")
+    print(valid_acc, test_acc)
 
     #####################################################################
     #                       END OF YOUR CODE                            #
