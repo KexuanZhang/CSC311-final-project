@@ -65,6 +65,7 @@ class AutoEncoder(nn.Module):
         h_w_norm = torch.norm(self.h.weight, 2) ** 2
         return g_w_norm + h_w_norm
 
+
     def forward(self, inputs):
         """ Return a forward pass given inputs.
 
@@ -82,7 +83,6 @@ class AutoEncoder(nn.Module):
         #                       END OF YOUR CODE                            #
         #####################################################################
         return out
-
 
 def subject_confidence(train_data, confi_index):
     """
@@ -124,20 +124,12 @@ def subject_confidence(train_data, confi_index):
         else:
             confidence_map[s] = count_map[0][0] / count_map[0][1]
 
-    # normalize confidence map:
+    #normalize confidence map:
     min_acc = min(confidence_map.values())
     max_acc = max(confidence_map.values())
     dist = max_acc - min_acc
     for s in range(num_sub):
         confidence_map[s] = confi_index * (((confidence_map[s] - min_acc) / dist) - 0.5)
-
-    #plot confidence map
-    # x = confidence_map.keys()
-    # y = confidence_map.values()
-    # plt.plot(x, y)
-    # plt.xlabel("subjects")
-    # plt.ylabel("confidence")
-    # plt.show()
 
     return confidence_map, meta_map
 
@@ -201,7 +193,7 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
             target = inputs.clone()
 
             optimizer.zero_grad()
-            # updated
+            #updated
             # output = model(inputs)
 
             output = model(inputs)
@@ -219,17 +211,14 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
             train_loss += loss.item()
             optimizer.step()
 
-        valid_acc,_ = evaluate(model, zero_train_data, valid_data)
-        # print("Epoch: {} \tTraining Cost: {:.6f}\t "
-        #       "Valid Acc: {}".format(epoch, train_loss, valid_acc))
+        valid_acc = evaluate(model, zero_train_data, valid_data)
         print("Epoch: {} \tTraining Cost: {:.6f}\t "
-              .format(epoch, train_loss))
+              "Valid Acc: {}".format(epoch, train_loss, valid_acc))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
 
-
-def evaluate(model, train_data, valid_data, confi_index=None):
+def evaluate(model, train_data, valid_data):
     """ Evaluate the valid_data on the current model.
 
     :param model: Module
@@ -239,50 +228,28 @@ def evaluate(model, train_data, valid_data, confi_index=None):
     :return: float
     """
     # Tell PyTorch you are evaluating the model.
-    if confi_index is not None:
-        model.eval()
+    model.eval()
 
-        total = 0
-        correct = 0
-        confidence_map, meta_map = subject_confidence(train_data, confi_index)
+    total = 0
+    correct = 0
+    confidence_map, meta_map = subject_confidence(train_data, 0.1)
 
-        probs = []
+    for i, u in enumerate(valid_data["user_id"]):
+        inputs = Variable(train_data[u]).unsqueeze(0)
+        output = model(inputs)
 
-        for i, u in enumerate(valid_data["user_id"]):
-            inputs = Variable(train_data[u]).unsqueeze(0)
-            output = model(inputs)
+        question = valid_data["question_id"][i]
+        subjects = meta_map[question]
+        confidence = 0
+        for s in subjects:
+            confidence += confidence_map[s]
 
-            question = valid_data["question_id"][i]
-            subjects = meta_map[question]
-            confidence = 0
-            for s in subjects:
-                confidence += confidence_map[s]
+        guess = output[0][valid_data["question_id"][i]].item() + confidence >= 0.5
+        if guess == valid_data["is_correct"][i]:
+            correct += 1
+        total += 1
 
-            guess = output[0][valid_data["question_id"][i]].item() + confidence >= 0.5
-            probs.append(output[0][valid_data["question_id"][i]].item() + confidence)
-            if guess == valid_data["is_correct"][i]:
-                correct += 1
-            total += 1
-
-        return correct / float(total), probs
-    else:
-        model.eval()
-
-        total = 0
-        correct = 0
-
-        probs = []
-
-        for i, u in enumerate(valid_data["user_id"]):
-            inputs = Variable(train_data[u]).unsqueeze(0)
-            output = model(inputs)
-
-            guess = output[0][valid_data["question_id"][i]].item() >= 0.5
-            probs.append(output[0][valid_data["question_id"][i]].item())
-            if guess == valid_data["is_correct"][i]:
-                correct += 1
-            total += 1
-        return correct / float(total), probs
+    return correct / float(total)
 
 
 def main():
@@ -294,54 +261,25 @@ def main():
     # validation set.                                                   #
     #####################################################################
     # Set model hyperparameters.
-    # k = 100
-    # model = AutoEncoder(train_matrix.shape[1], k)
-    # #
-    # # # Set optimization hyperparameters.
-    # lr = 0.01
-    # num_epoch = 5
-    # lamb = 0.01
-    # confi_index = 0.3
-    #
-    # train(model, lr, lamb, train_matrix, zero_train_matrix,
-    #       valid_data, num_epoch)
-    # original_acc, original_probs = evaluate(model, zero_train_matrix, valid_data)
-    # confi_acc, confi_probs = evaluate(model, zero_train_matrix, valid_data, confi_index)
-    # x = range(142)
-    # sampled_ori = [original_probs[i] for i in range(len(original_probs)) if i % 50 == 0]
-    # sampled_confi = [confi_probs[i] for i in range(len(confi_probs)) if i % 50 == 0]
-    # plt.plot(x, sampled_ori, label="probs for original algo")
-    # plt.plot(x, sampled_confi, label="probs for confidence algo")
-    # plt.legend()
-    # plt.show()
-    # print("The accuracy without probability filter", original_acc)
-    # print("The accuracy with probability filter", confi_acc)
-
-# acc comparison
-
-    k = [10, 30, 50, 100, 150]
+    k = [10, 50, 100, 200, 500]
     # model = AutoEncoder(train_matrix.shape[1], k)
 
     # Set optimization hyperparameters.
     lr = 0.01
     num_epoch = 150
     lamb = 0.01
-    confi_index = 0.1
 
     # Choosing K
 
     accuracies = []
-    accuracies_confi = []
     for k_i in k:
         print(f"Training for k = {k_i}")
         model = AutoEncoder(train_matrix.shape[1], k_i)
         train(model, lr, lamb, train_matrix, zero_train_matrix,
-              valid_data, num_epoch)
+          valid_data, num_epoch)
         accuracies.append(evaluate(model, zero_train_matrix, valid_data))
-        accuracies_confi.append(evaluate(model, zero_train_matrix, valid_data, confi_index))
 
-    plt.plot(k, accuracies, color="red", label="original acc")
-    plt.plot(k, accuracies_confi, color="blue", label="confi acc")
+    plt.plot(k, accuracies, marker='o')
     plt.show()
 
     #####################################################################
