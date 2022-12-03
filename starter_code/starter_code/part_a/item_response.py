@@ -165,8 +165,8 @@ def main():
     # plt.plot(iter_axis, valid_neglld_lst)
     # plt.savefig('valid_lld.png')
     #
-    # print("the accuracy for validation data:", evaluate(data=val_data, theta=theta, beta=beta))
-    # print("the accuracy for test data:", evaluate(data=test_data, theta=theta, beta=beta))
+    print("the accuracy for validation data:", evaluate(data=val_data, theta=theta, beta=beta))
+    print("the accuracy for test data:", evaluate(data=test_data, theta=theta, beta=beta))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -180,7 +180,7 @@ def main():
     plt.plot(ordered_t, sigmoid((ordered_t - beta[j_1])))
     plt.plot(ordered_t, sigmoid((ordered_t - beta[j_2])))
     plt.plot(ordered_t, sigmoid((ordered_t - beta[j_3])))
-    plt.savefig("ques_prob.png")
+    plt.show()
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
