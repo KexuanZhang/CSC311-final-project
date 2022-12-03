@@ -230,14 +230,14 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
             limit += 1
         if valid_acc > highest_acc or highest_acc == 1:
             highest_acc = valid_acc
-        if limit > 7:
+        if limit > 10:
             return
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
 
 
-def evaluate(model, train_data, valid_data):
+def evaluate(model, train_data, valid_data, confi_index=None):
     """ Evaluate the valid_data on the current model.
 
     :param model: Module
@@ -247,52 +247,51 @@ def evaluate(model, train_data, valid_data):
     :return: float
     """
     # Tell PyTorch you are evaluating the model.
-    model.eval()
+    # Tell PyTorch you are evaluating the model.
+    if confi_index is not None:
+        model.eval()
 
-    total = 0
-    correct = 0
-    confidence_map, meta_map = subject_confidence(train_data, 0.1)
+        total = 0
+        correct = 0
+        confidence_map, meta_map = subject_confidence(train_data, confi_index)
 
-    for i, u in enumerate(valid_data["user_id"]):
-        inputs = Variable(train_data[u]).unsqueeze(0)
-        output = model(inputs)
+        probs = []
 
-        question = valid_data["question_id"][i]
-        subjects = meta_map[question]
-        confidence = 0
-        for s in subjects:
-            confidence += confidence_map[s]
+        for i, u in enumerate(valid_data["user_id"]):
+            inputs = Variable(train_data[u]).unsqueeze(0)
+            output = model(inputs)
 
-        guess = output[0][valid_data["question_id"][i]].item() + confidence >= 0.5
-        if guess == valid_data["is_correct"][i]:
-            correct += 1
-        total += 1
+            question = valid_data["question_id"][i]
+            subjects = meta_map[question]
+            confidence = 0
+            for s in subjects:
+                confidence += confidence_map[s]
 
-    return correct / float(total)
+            guess = output[0][valid_data["question_id"][i]].item() + confidence >= 0.5
+            probs.append(output[0][valid_data["question_id"][i]].item() + confidence)
+            if guess == valid_data["is_correct"][i]:
+                correct += 1
+            total += 1
 
-def make_prediction(model, train_data, test_data):
-    model.eval()
+        return correct / float(total)
+    else:
+        model.eval()
 
-    confidence_map, meta_map = subject_confidence(train_data, 0.1)
+        total = 0
+        correct = 0
 
-    pred_dict = {'user_id': [], 'question_id': [], 'is_correct': []}
+        probs = []
 
-    for i, u in enumerate(test_data["user_id"]):
-        inputs = Variable(train_data[u]).unsqueeze(0)
-        output = model(inputs)
+        for i, u in enumerate(valid_data["user_id"]):
+            inputs = Variable(train_data[u]).unsqueeze(0)
+            output = model(inputs)
 
-        question = test_data["question_id"][i]
-        subjects = meta_map[question]
-        confidence = 0
-        for s in subjects:
-            confidence += confidence_map[s]
-
-        guess = output[0][test_data["question_id"][i]].item() + confidence >= 0.5
-        pred_dict['user_id'].append(u)
-        pred_dict['question_id'].append(question)
-        pred_dict['is_correct'].append(guess)
-
-    save_private_test_csv(pred_dict)
+            guess = output[0][valid_data["question_id"][i]].item() >= 0.5
+            probs.append(output[0][valid_data["question_id"][i]].item())
+            if guess == valid_data["is_correct"][i]:
+                correct += 1
+            total += 1
+        return correct / float(total)
 
 
 def main():
@@ -303,8 +302,6 @@ def main():
     # Try out 5 different k and select the best k using the             #
     # validation set.                                                   #
     #####################################################################
-    # load competition data
-    real_test_data = load_private_test_csv("../data")
     # Set model hyperparameters.
     lr = 0.005
     num_epoch = 400
@@ -320,8 +317,6 @@ def main():
 
     print(f"learning rate:{lr}, lambda:{lamb}, k1:{k1}, k2:{k2}")
     print(valid_acc, test_acc)
-
-    make_prediction(model, zero_train_matrix, real_test_data)
 
     #####################################################################
     #                       END OF YOUR CODE                            #

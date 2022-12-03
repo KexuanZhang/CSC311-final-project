@@ -183,7 +183,7 @@ def main():
 
     # Set optimization hyperparameters.
     lr = 0.01
-    num_epoch = 300
+    num_epoch = 200
     lamb = 0.001
 
     # Choosing K
